@@ -24,6 +24,13 @@ public class NetworkGameManager : NetworkBehaviour
 
     [SerializeField] private GameObject enemyPrefab;  // префаб бота для сетевого спавна
     [SerializeField] private int enemyCount = 3;      // сколько ботов создать на старте
+    [SerializeField] private GameObject coinPrefab;   // префаб монетки
+    [SerializeField] private int startCoins = 6;      // сколько монеток в начале
+    [SerializeField] private int maxCoins = 10;       // максимум монеток на арене
+    [SerializeField] private float coinInterval = 5f; // период появления новых монеток
+
+    private float nextCoinTime;   // когда спавнить следующую монетку
+    private int currentCoins;     // сколько монеток сейчас на арене
 
     // Точки появления игроков заданы в коде, чтобы менеджер был
     // самодостаточным префабом и не зависел от объектов в сцене.
@@ -56,7 +63,37 @@ public class NetworkGameManager : NetworkBehaviour
         if (IsServer)
         {
             SpawnEnemies();
+            SpawnInitialCoins();
         }
+    }
+
+    /// <summary>
+    /// Создаёт стартовую партию монеток на арене.
+    /// </summary>
+    private void SpawnInitialCoins()
+    {
+        for (int i = 0; i < startCoins; i++)
+        {
+            SpawnOneCoin();
+        }
+    }
+
+    /// <summary>
+    /// Спавнит одну монетку в случайной точке арены, если есть префаб
+    /// и на арене ещё меньше maxCoins монеток.
+    /// </summary>
+    private void SpawnOneCoin()
+    {
+        if (coinPrefab == null) return;
+
+        // Текущее число монеток считаем сканированием — надёжно и просто.
+        currentCoins = FindObjectsByType<Coin>(FindObjectsSortMode.None).Length;
+        if (currentCoins >= maxCoins) return;
+
+        // Случайная позиция в пределах арены, чуть над полом.
+        Vector3 pos = new Vector3(Random.Range(-18f, 18f), 1f, Random.Range(-18f, 18f));
+        GameObject coin = Instantiate(coinPrefab, pos, Quaternion.identity);
+        coin.GetComponent<NetworkObject>().Spawn(true);
     }
 
     /// <summary>
@@ -96,6 +133,13 @@ public class NetworkGameManager : NetworkBehaviour
         if (!IsServer || gameOver.Value) return;
 
         timeLeft.Value -= Time.deltaTime;
+
+        // Периодически досыпаем монетки взамен собранных.
+        if (Time.time >= nextCoinTime)
+        {
+            nextCoinTime = Time.time + coinInterval;
+            SpawnOneCoin();
+        }
 
         if (timeLeft.Value <= 0f)
         {

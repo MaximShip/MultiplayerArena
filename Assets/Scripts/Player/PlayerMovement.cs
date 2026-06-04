@@ -11,6 +11,7 @@ public class PlayerMovement : NetworkBehaviour
 {
     [SerializeField] private float speed = 5f;            // скорость ходьбы
     [SerializeField] private float mouseSensitivity = 2f; // чувствительность мыши
+    [SerializeField] private float jumpHeight = 1.5f;     // высота прыжка в метрах
     [SerializeField] private Transform cameraTransform;   // дочерняя камера для наклона
 
     private CharacterController controller;
@@ -112,6 +113,14 @@ public class PlayerMovement : NetworkBehaviour
         {
             verticalVelocity = -1f;
         }
+
+        // Прыжок: только стоя на земле. Скорость = sqrt(2 * h * g),
+        // чтобы игрок поднялся ровно на jumpHeight метров.
+        if (controller.isGrounded && input.Player.Jump.WasPressedThisFrame())
+        {
+            verticalVelocity = Mathf.Sqrt(2f * jumpHeight * 9.81f);
+        }
+
         verticalVelocity -= 9.81f * Time.deltaTime;
 
         Vector3 velocity = horizontal + Vector3.up * verticalVelocity;

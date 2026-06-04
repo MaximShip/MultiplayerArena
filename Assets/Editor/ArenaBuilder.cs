@@ -24,6 +24,7 @@ public static class ArenaBuilder
     private const string ScenePath = "Assets/Scenes/Arena.unity";
     private const string PlayerPrefabPath = "Assets/Prefabs/NetworkPlayer.prefab";
     private const string EnemyPrefabPath = "Assets/Prefabs/Enemy.prefab";
+    private const string CoinPrefabPath = "Assets/Prefabs/Coin.prefab";
     private const string GameManagerPrefabPath = "Assets/Prefabs/GameManager.prefab";
 
     /// <summary>
@@ -59,10 +60,11 @@ public static class ArenaBuilder
             //    динамически с сервера. Это убирает ошибки синхронизации сцены.
             GameObject playerPrefab = BuildPlayerPrefab();
             GameObject enemyPrefab = BuildEnemyPrefab();
-            GameObject gameManagerPrefab = BuildGameManagerPrefab(enemyPrefab);
+            GameObject coinPrefab = BuildCoinPrefab();
+            GameObject gameManagerPrefab = BuildGameManagerPrefab(enemyPrefab, coinPrefab);
 
             // 4. NetworkManager: транспорт + регистрация всех сетевых префабов.
-            BuildNetworkManager(playerPrefab, enemyPrefab, gameManagerPrefab);
+            BuildNetworkManager(playerPrefab, enemyPrefab, coinPrefab, gameManagerPrefab);
 
             // 5. Объект-бутстрап в сцене: при старте хоста спавнит менеджер игры.
             BuildGameBootstrap(gameManagerPrefab);
@@ -199,6 +201,36 @@ public static class ArenaBuilder
         return prefab;
     }
 
+    // ───────────────────────────── Префаб монетки ─────────────────────────────
+
+    /// <summary>
+    /// Собирает монетку: сплющенный цилиндр-«диск» с триггер-коллайдером,
+    /// NetworkObject и скриптом Coin. Сохраняет как префаб.
+    /// </summary>
+    private static GameObject BuildCoinPrefab()
+    {
+        GameObject coin = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        coin.name = "Coin";
+        // Плоский диск, лежащий «на ребре» (как монета), приподнятый над полом.
+        coin.transform.localScale = new Vector3(0.5f, 0.05f, 0.5f);
+        coin.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+
+        // Стандартный коллайдер цилиндра делаем триггером и расширяем,
+        // чтобы монетку было легко подобрать на бегу.
+        Collider baseCol = coin.GetComponent<Collider>();
+        if (baseCol != null) Object.DestroyImmediate(baseCol);
+        SphereCollider trigger = coin.AddComponent<SphereCollider>();
+        trigger.isTrigger = true;
+        trigger.radius = 1.5f;
+
+        coin.AddComponent<NetworkObject>();
+        coin.AddComponent<Coin>();
+
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(coin, CoinPrefabPath);
+        Object.DestroyImmediate(coin);
+        return prefab;
+    }
+
     // ───────────────────────────── NetworkManager ─────────────────────────────
 
     /// <summary>
@@ -207,7 +239,7 @@ public static class ArenaBuilder
     /// сценами — у нас одна статичная сцена и нет сетевых объектов в ней,
     /// поэтому синхронизация сцены не нужна (и не падает).
     /// </summary>
-    private static void BuildNetworkManager(GameObject playerPrefab, GameObject enemyPrefab, GameObject gameManagerPrefab)
+    private static void BuildNetworkManager(GameObject playerPrefab, GameObject enemyPrefab, GameObject coinPrefab, GameObject gameManagerPrefab)
     {
         GameObject nmObj = new GameObject("NetworkManager");
         NetworkManager nm = nmObj.AddComponent<NetworkManager>();
@@ -223,6 +255,7 @@ public static class ArenaBuilder
         try
         {
             nm.NetworkConfig.Prefabs.Add(new NetworkPrefab { Prefab = enemyPrefab });
+            nm.NetworkConfig.Prefabs.Add(new NetworkPrefab { Prefab = coinPrefab });
             nm.NetworkConfig.Prefabs.Add(new NetworkPrefab { Prefab = gameManagerPrefab });
         }
         catch (System.Exception)
@@ -241,7 +274,7 @@ public static class ArenaBuilder
     /// прописывает в нём ссылку на префаб врага. Точки спавна заданы в коде
     /// менеджера, поэтому объектов в сцене не требуется.
     /// </summary>
-    private static GameObject BuildGameManagerPrefab(GameObject enemyPrefab)
+    private static GameObject BuildGameManagerPrefab(GameObject enemyPrefab, GameObject coinPrefab)
     {
         GameObject gmObj = new GameObject("GameManager");
         gmObj.AddComponent<NetworkObject>();
@@ -249,6 +282,7 @@ public static class ArenaBuilder
 
         SetRef(gm, "enemyPrefab", enemyPrefab);
         SetInt(gm, "enemyCount", 3);
+        SetRef(gm, "coinPrefab", coinPrefab);
 
         GameObject prefab = PrefabUtility.SaveAsPrefabAsset(gmObj, GameManagerPrefabPath);
         Object.DestroyImmediate(gmObj);
