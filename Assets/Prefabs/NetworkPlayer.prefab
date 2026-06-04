@@ -208,6 +208,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   speed: 5
   mouseSensitivity: 2
+  jumpHeight: 1.5
   cameraTransform: {fileID: 4407759850774791677}
 --- !u!114 &4779836291794323962
 MonoBehaviour:

@@ -83,3 +83,7 @@ MonoBehaviour:
     m_InternalValue: 0
   enemyPrefab: {fileID: 8476701763237121702, guid: 3d4e85876a91f374dad77865314bd2d7, type: 3}
   enemyCount: 3
+  coinPrefab: {fileID: 2928234061706019848, guid: 919484496fc5b064b86cd721886f028e, type: 3}
+  startCoins: 6
+  maxCoins: 10
+  coinInterval: 5
